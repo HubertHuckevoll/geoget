@@ -184,7 +184,7 @@ extract_archives()
     log "Downloading PC/GEOS Ensemble build"
     download "${GEOS_RELEASE_URL}" "${geos_zip}"
 
-    log "Downloading Basebox DOSBox fork"
+    log "Downloading Basebox DOSBox-Staging fork"
     download "${BASEBOX_RELEASE_URL}" "${basebox_zip}"
 
     log "Extracting Ensemble archive"
@@ -398,7 +398,7 @@ main()
     create_basebox_config
     create_launcher
 
-    log "Deployment complete. Run '${LOCAL_LAUNCHER}' to start Ensemble in Basebox."
+    log "Deployment complete."
 }
 
 main "$@"

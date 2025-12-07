@@ -56,6 +56,20 @@ function Require-Command {
     }
 }
 
+function Get-UserHome {
+    $userRoot = $env:USERPROFILE
+    if ($userRoot) {
+        return $userRoot
+    }
+
+    $homeEnv = $env:HOME
+    if ($homeEnv) {
+        return $homeEnv
+    }
+
+    Fail 'Neither USERPROFILE nor HOME environment variables are set.'
+}
+
 function Resolve-InstallRoot {
     param(
         [Parameter(Mandatory = $true)][string]$Root
@@ -65,11 +79,7 @@ function Resolve-InstallRoot {
         return (Get-Item -Path $Root).FullName
     }
 
-    $userRoot = $env:USERPROFILE
-    if (-not $userRoot) {
-        Fail 'USERPROFILE environment variable is not set.'
-    }
-
+    $userRoot = Get-UserHome
     return (Join-Path $userRoot $Root)
 }
 
@@ -106,6 +116,37 @@ function Resolve-GeosArchiveRoot {
     return ''
 }
 
+function Select-BaseboxBinary {
+    param(
+        [Parameter(Mandatory = $true)][string]$BaseboxRoot
+    )
+
+    $platform = [System.Runtime.InteropServices.RuntimeInformation]
+    $candidates = @()
+
+    if ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+        $candidates += 'binnt/basebox.exe'
+    }
+    elseif ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)) {
+        $candidates += 'binl64/basebox'
+        $candidates += 'binl/basebox'
+    }
+    elseif ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)) {
+        $candidates += 'binmac/basebox'
+    }
+
+    $candidates += @('binl64/basebox', 'binl/basebox', 'binmac/basebox', 'binnt/basebox.exe')
+
+    foreach ($relative in $candidates | Select-Object -Unique) {
+        $candidate = Join-Path $BaseboxRoot $relative
+        if (Test-Path -Path $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
+
+    return ''
+}
+
 if ($args.Count -lt 1) {
     Fail "Usage: pwsh -File geoget.ps1 <install-root>"
 }
@@ -115,7 +156,8 @@ $DriveCDir = Join-Path $InstallRoot 'drivec'
 $GeosInstallDir = Join-Path $DriveCDir 'ensemble'
 $BaseboxDir = Join-Path $InstallRoot 'basebox'
 $BaseboxBaseConfig = Join-Path $BaseboxDir 'basebox-geos.conf'
-$LocalLauncher = Join-Path $InstallRoot 'ensemble.cmd'
+$LocalLauncherCmd = Join-Path $InstallRoot 'ensemble.cmd'
+$LocalLauncherSh = Join-Path $InstallRoot 'ensemble.sh'
 
 function Prepare-Environment {
     Write-Log 'Checking prerequisites'
@@ -160,6 +202,25 @@ function Extract-Archives {
         Write-Log "Installing Basebox into $BaseboxDir"
         $baseboxSource = Join-Path (Join-Path (Join-Path $tempDir 'basebox') 'pcgeos-basebox') '*'
         Copy-Item -Path $baseboxSource -Destination $BaseboxDir -Recurse -Force
+
+        $runtimeInfo = [System.Runtime.InteropServices.RuntimeInformation]
+        if (-not $runtimeInfo::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+            if (Get-Command -Name 'chmod' -ErrorAction SilentlyContinue) {
+                Write-Log 'Ensuring Basebox executables are marked executable'
+                Get-ChildItem -Path $BaseboxDir -Recurse -File -Include 'basebox', 'basebox.exe', '*.sh' |
+                    ForEach-Object {
+                        try {
+                            & chmod +x -- $_.FullName
+                        }
+                        catch {
+                            Write-Log "Warning: Failed to mark $($_.FullName) as executable: $($_.Exception.Message)"
+                        }
+                    }
+            }
+            else {
+                Write-Log 'Warning: chmod not available; skipping executable bit adjustments.'
+            }
+        }
     }
     finally {
         if (Test-Path -Path $tempDir) {
@@ -169,12 +230,15 @@ function Extract-Archives {
 }
 
 function Create-BaseboxConfig {
-    $baseboxExe = Join-Path $BaseboxDir 'binnt/basebox.exe'
-    if (-not (Test-Path -Path $baseboxExe -PathType Leaf)) {
-        Fail "Unable to locate Basebox executable at $baseboxExe"
+    $baseboxExe = Select-BaseboxBinary -BaseboxRoot $BaseboxDir
+    if (-not $baseboxExe) {
+        Fail "Unable to locate the Basebox executable inside $BaseboxDir"
     }
 
-    Write-Log 'Generating Basebox configuration'
+    $runtimeInfo = [System.Runtime.InteropServices.RuntimeInformation]
+    $isWindowsPlatform = $runtimeInfo::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+
+    Write-Log "Generating Basebox configuration using $(Split-Path -Path $baseboxExe -Leaf)"
 
     $xdgRoot = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
     New-Item -ItemType Directory -Path $xdgRoot -Force | Out-Null
@@ -182,6 +246,8 @@ function Create-BaseboxConfig {
     New-Item -ItemType Directory -Path $xdgConfig -Force | Out-Null
 
     $previousXdg = $env:XDG_CONFIG_HOME
+    $previousSdlVideo = $env:SDL_VIDEODRIVER
+    $previousSdlAudio = $env:SDL_AUDIODRIVER
     $env:XDG_CONFIG_HOME = $xdgConfig
     try {
         $printConf = & $baseboxExe --printconf 2>$null
@@ -208,7 +274,44 @@ function Create-BaseboxConfig {
             Remove-Item -Path $configPath -Force
         }
 
-        & $baseboxExe -c exit *> $null
+        $configGenerated = $false
+        $shouldUseDummyDrivers = (-not $isWindowsPlatform) -and (-not $env:DISPLAY) -and (-not $env:WAYLAND_DISPLAY)
+
+        if ($shouldUseDummyDrivers) {
+            $env:SDL_VIDEODRIVER = 'dummy'
+            $env:SDL_AUDIODRIVER = 'dummy'
+            try {
+                & $baseboxExe -c exit *> $null
+                $configGenerated = $true
+            }
+            catch {
+                Write-Log 'Warning: Basebox failed with SDL dummy drivers, retrying with host display.'
+            }
+            finally {
+                if ($null -ne $previousSdlVideo) {
+                    $env:SDL_VIDEODRIVER = $previousSdlVideo
+                }
+                else {
+                    Remove-Item Env:SDL_VIDEODRIVER -ErrorAction SilentlyContinue
+                }
+
+                if ($null -ne $previousSdlAudio) {
+                    $env:SDL_AUDIODRIVER = $previousSdlAudio
+                }
+                else {
+                    Remove-Item Env:SDL_AUDIODRIVER -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
+        if (-not $configGenerated) {
+            try {
+                & $baseboxExe -c exit *> $null
+            }
+            catch {
+                Fail 'Basebox failed to generate its default configuration.'
+            }
+        }
 
         if (-not (Test-Path -Path $configPath -PathType Leaf)) {
             Fail "Basebox did not create a configuration file at $configPath."
@@ -264,6 +367,19 @@ function Create-BaseboxConfig {
     }
     finally {
         $env:XDG_CONFIG_HOME = $previousXdg
+        if ($null -ne $previousSdlVideo) {
+            $env:SDL_VIDEODRIVER = $previousSdlVideo
+        }
+        else {
+            Remove-Item Env:SDL_VIDEODRIVER -ErrorAction SilentlyContinue
+        }
+
+        if ($null -ne $previousSdlAudio) {
+            $env:SDL_AUDIODRIVER = $previousSdlAudio
+        }
+        else {
+            Remove-Item Env:SDL_AUDIODRIVER -ErrorAction SilentlyContinue
+        }
         if (Test-Path -Path $xdgRoot) {
             Remove-Item -Path $xdgRoot -Recurse -Force
         }
@@ -279,9 +395,9 @@ function Copy-LocalUserConfig {
 }
 
 function Create-Launcher {
-    Write-Log "Creating Ensemble launcher at $LocalLauncher"
+    Write-Log "Creating Ensemble launchers at $LocalLauncherCmd and $LocalLauncherSh"
 
-    $launcherContent = @'
+    $cmdLauncher = @'
 @echo off
 setlocal
 set SCRIPT_DIR=%~dp0
@@ -303,7 +419,63 @@ if not exist "%BASE_CONFIG_FILE%" (
 "%BASEBOX_EXEC%" -conf "%BASE_CONFIG_FILE%" -conf "%USER_CONFIG_FILE%" %*
 '@
 
-    Set-Content -Path $LocalLauncher -Value $launcherContent -Encoding ASCII -NoNewline:$false
+    Set-Content -Path $LocalLauncherCmd -Value $cmdLauncher -Encoding ASCII -NoNewline:$false
+
+    $shLauncher = @'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASEBOX_DIR="${SCRIPT_DIR}/basebox"
+
+select_basebox_binary()
+{
+    local candidate
+    if [ -x "${BASEBOX_DIR}/binl64/basebox" ]; then
+        candidate="${BASEBOX_DIR}/binl64/basebox"
+    elif [ -x "${BASEBOX_DIR}/binl/basebox" ]; then
+        candidate="${BASEBOX_DIR}/binl/basebox"
+    elif [ -x "${BASEBOX_DIR}/binmac/basebox" ]; then
+        candidate="${BASEBOX_DIR}/binmac/basebox"
+    elif [ -x "${BASEBOX_DIR}/binnt/basebox.exe" ]; then
+        candidate="${BASEBOX_DIR}/binnt/basebox.exe"
+    else
+        candidate=""
+    fi
+
+    if [ -z "$candidate" ]; then
+        printf 'Error: Unable to locate the Basebox executable.\n' >&2
+        exit 1
+    fi
+
+    printf '%s' "$candidate"
+}
+
+BASEBOX_EXEC="$(select_basebox_binary)"
+BASE_CONFIG_FILE="${BASEBOX_DIR}/basebox-geos.conf"
+USER_CONFIG_FILE="${BASEBOX_DIR}/basebox.conf"
+
+if [ ! -f "$BASE_CONFIG_FILE" ]; then
+    printf 'Error: Missing Basebox configuration at %s\n' "$BASE_CONFIG_FILE" >&2
+    exit 1
+fi
+
+exec "$BASEBOX_EXEC" -conf "$BASE_CONFIG_FILE" -conf "$USER_CONFIG_FILE" "$@"
+'@
+
+    Set-Content -Path $LocalLauncherSh -Value $shLauncher -Encoding ASCII -NoNewline:$false
+
+    if (Get-Command -Name 'chmod' -ErrorAction SilentlyContinue) {
+        try {
+            & chmod +x -- $LocalLauncherSh
+        }
+        catch {
+            Write-Log "Warning: Failed to mark $LocalLauncherSh as executable: $($_.Exception.Message)"
+        }
+    }
+    else {
+        Write-Log 'Warning: chmod not available; launcher may not be executable.'
+    }
 }
 
 function Main {

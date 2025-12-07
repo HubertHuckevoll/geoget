@@ -75,12 +75,15 @@ function Resolve-InstallRoot {
         [Parameter(Mandatory = $true)][string]$Root
     )
 
-    if ([System.IO.Path]::IsPathRooted($Root)) {
-        return (Get-Item -Path $Root).FullName
+    $fullPath = if ([System.IO.Path]::IsPathRooted($Root)) {
+        [System.IO.Path]::GetFullPath($Root)
+    }
+    else {
+        $userRoot = Get-UserHome
+        [System.IO.Path]::GetFullPath((Join-Path $userRoot $Root))
     }
 
-    $userRoot = Get-UserHome
-    return (Join-Path $userRoot $Root)
+    return $fullPath
 }
 
 function Download-File {
@@ -122,20 +125,24 @@ function Select-BaseboxBinary {
     )
 
     $platform = [System.Runtime.InteropServices.RuntimeInformation]
-    $candidates = @()
+    $preferred = @()
 
-    if ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
-        $candidates += 'binnt/basebox.exe'
-    }
-    elseif ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)) {
-        $candidates += 'binl64/basebox'
-        $candidates += 'binl/basebox'
-    }
-    elseif ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)) {
-        $candidates += 'binmac/basebox'
+    switch ($true) {
+        { $platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows) } {
+            $preferred += 'binnt/basebox.exe'
+            break
+        }
+        { $platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux) } {
+            $preferred += @('binl64/basebox', 'binl/basebox')
+            break
+        }
+        { $platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX) } {
+            $preferred += 'binmac/basebox'
+            break
+        }
     }
 
-    $candidates += @('binl64/basebox', 'binl/basebox', 'binmac/basebox', 'binnt/basebox.exe')
+    $candidates = $preferred + @('binl64/basebox', 'binl/basebox', 'binmac/basebox', 'binnt/basebox.exe')
 
     foreach ($relative in $candidates | Select-Object -Unique) {
         $candidate = Join-Path $BaseboxRoot $relative
@@ -200,7 +207,7 @@ function Extract-Archives {
         Copy-Item -Path (Join-Path $geosSource '*') -Destination $GeosInstallDir -Recurse -Force
 
         Write-Log "Installing Basebox into $BaseboxDir"
-        $baseboxSource = Join-Path (Join-Path (Join-Path $tempDir 'basebox') 'pcgeos-basebox') '*'
+        $baseboxSource = Join-Path $tempDir 'basebox/pcgeos-basebox/*'
         Copy-Item -Path $baseboxSource -Destination $BaseboxDir -Recurse -Force
 
         $runtimeInfo = [System.Runtime.InteropServices.RuntimeInformation]
@@ -369,23 +376,10 @@ function Create-BaseboxConfig {
             }
         }
 
-        Set-Content -Path $BaseboxBaseConfig -Value $outputLines -Encoding UTF8 -NoNewline:$false
+        Set-Content -Path $BaseboxBaseConfig -Value $outputLines -Encoding UTF8
     }
     finally {
         $env:XDG_CONFIG_HOME = $previousXdg
-        if ($null -ne $previousSdlVideo) {
-            $env:SDL_VIDEODRIVER = $previousSdlVideo
-        }
-        else {
-            Remove-Item Env:SDL_VIDEODRIVER -ErrorAction SilentlyContinue
-        }
-
-        if ($null -ne $previousSdlAudio) {
-            $env:SDL_AUDIODRIVER = $previousSdlAudio
-        }
-        else {
-            Remove-Item Env:SDL_AUDIODRIVER -ErrorAction SilentlyContinue
-        }
         if (Test-Path -Path $xdgRoot) {
             Remove-Item -Path $xdgRoot -Recurse -Force
         }
@@ -425,7 +419,7 @@ if not exist "%BASE_CONFIG_FILE%" (
 "%BASEBOX_EXEC%" -conf "%BASE_CONFIG_FILE%" -conf "%USER_CONFIG_FILE%" %*
 '@
 
-    Set-Content -Path $LocalLauncherCmd -Value $cmdLauncher -Encoding ASCII -NoNewline:$false
+    Set-Content -Path $LocalLauncherCmd -Value $cmdLauncher -Encoding ASCII
 
     $shLauncher = @'
 #!/usr/bin/env bash
@@ -469,7 +463,7 @@ fi
 exec "$BASEBOX_EXEC" -conf "$BASE_CONFIG_FILE" -conf "$USER_CONFIG_FILE" "$@"
 '@
 
-    Set-Content -Path $LocalLauncherSh -Value $shLauncher -Encoding ASCII -NoNewline:$false
+    Set-Content -Path $LocalLauncherSh -Value $shLauncher -Encoding ASCII
 
     if (Get-Command -Name 'chmod' -ErrorAction SilentlyContinue) {
         try {

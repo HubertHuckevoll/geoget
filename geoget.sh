@@ -22,8 +22,8 @@ GEOS_RELEASE_URL="https://github.com/bluewaysw/pcgeos/releases/download/CI-lates
 BASEBOX_RELEASE_URL="https://github.com/bluewaysw/pcgeos-basebox/releases/download/CI-latest-issue-13/pcgeos-basebox.zip"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOCAL_USER_CONFIG_SOURCE="${SCRIPT_DIR}/basebox.conf"
-LOCAL_LAUNCHER_TEMPL="${SCRIPT_DIR}/ensemble.sh"
+LOCAL_USER_CONFIG_SOURCE="${SCRIPT_DIR}/templ/basebox.conf"
+LOCAL_LAUNCHER_TEMPL="${SCRIPT_DIR}/templ/ensemble.sh"
 
 DETECTED_BASEBOX_BINARY=""
 

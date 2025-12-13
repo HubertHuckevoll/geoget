@@ -18,9 +18,9 @@ build() {
   fi
 }
 
-build linux amd64 geoget-linux-amd64
-build linux arm geoget-linux-armv7 7      # Raspberry Pi (ARMv7)
-build windows amd64 geoget-windows-amd64.exe
-build darwin arm64 geoget-darwin-arm64
+build linux amd64 geoget-linux
+build linux arm geoget-linux-arm 7      # Raspberry Pi (ARMv7)
+build windows amd64 geoget-win64.exe
+build darwin arm64 geoget-mac64
 
 echo "Done. Artifacts written to $SCRIPT_DIR"

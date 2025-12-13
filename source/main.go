@@ -78,17 +78,17 @@ func main() {
 		fatal(err)
 	}
 
-	detectedBasebox := detectBaseboxBinary(baseboxDir)
-	if detectedBasebox == "" {
-		fatal(fmt.Errorf("unable to locate the Basebox executable inside %s", baseboxDir))
+	baseboxBinary, err := detectBaseboxBinary(baseboxDir)
+	if err != nil {
+		fatal(err)
 	}
-	logger.Printf("Using Basebox executable: %s\n", detectedBasebox)
+	logger.Printf("Using Basebox executable: %s (%s)\n", baseboxBinary.relPath, baseboxBinary.arch)
 
 	if err := writeBaseboxConfig(baseboxDir, drivecDir); err != nil {
 		fatal(err)
 	}
 
-	if err := createLaunchers(installRoot); err != nil {
+	if err := createLaunchers(installRoot, baseboxBinary.arch); err != nil {
 		fatal(err)
 	}
 

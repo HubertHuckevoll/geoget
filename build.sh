@@ -20,6 +20,7 @@ build() {
 
 build linux amd64 geoget-linux
 build linux arm geoget-linux-arm 7      # Raspberry Pi (ARMv7)
+build windows 386 geoget-win32.exe
 build windows amd64 geoget-win64.exe
 build darwin arm64 geoget-mac64
 

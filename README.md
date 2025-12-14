@@ -11,7 +11,7 @@ After this you can start the Launcher in your new created directory.
 
 Geoget ist ein Tool welches Ihnen einen einfachen Weg gibt um das aktuelle Release von PCGEOS (https://github.com/bluewaysw/pcgeos/releases/tag/CI-latest-issue-829) in Kombination mit dem letzten Basebox Release (https://github.com/bluewaysw/pcgeos-basebox/releases/tag/CI-latest-issue-13) zu testen.
 Um Geoget zu benutzen haben Sie zwei Wege.
-1. ) Der einfache Weg ist es die Dateien zu nutzen, die Sie unter Release finden können. Laden sie die zu Ihrem Computer passende Datei herunter und starten sie in einer Eingabeaufforderung / Shell. Geben sie dabei den Namen des Verzeichnis in das Sie installieren möchten als Parameter an.
+1. ) Der einfache Weg ist es die Dateien zu nutzen, die Sie unter Releases finden können. Laden sie die zu Ihrem Computer passende Datei herunter und starten sie in einer Eingabeaufforderung / Shell. Geben sie dabei den Namen des Verzeichnis in das Sie installieren möchten als Parameter an.
 
 geoget-win64.exe geogetbx
 

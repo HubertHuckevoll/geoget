@@ -1,4 +1,4 @@
-Geoget is a Tool which gives you an easy way to test the actual Release of PCGeos (CI latest 829) in combination with the latest Basebox (Issue 13) Release.
+Geoget is a Tool which gives you an easy way to test the actual Release of PCGEOS (https://github.com/bluewaysw/pcgeos/releases/tag/CI-latest-issue-829) in combination with the latest Basebox Release (https://github.com/bluewaysw/pcgeos-basebox/releases/tag/CI-latest-issue-13).
 To use it you have two ways.
 The easy Way is to use the Files you can find at Releases. Download the File wich matter to your computer and start it in a Terminal / shell. Add the name of the directory which   as an parameter-
 geoget-win64.exe geogetbx

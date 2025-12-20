@@ -12,13 +12,20 @@ import (
 )
 
 const (
-	geosReleaseURL    = "https://github.com/bluewaysw/pcgeos/releases/download/CI-latest-issue-829/pcgeos-ensemble_nc.zip"
-	baseboxReleaseURL = "https://github.com/bluewaysw/pcgeos-basebox/releases/download/CI-latest-issue-13/pcgeos-basebox.zip"
-	geosArchiveRoot   = "ensemble"
+	defaultGeosReleaseTag    = "CI-latest"
+	defaultBaseboxReleaseTag = "CI-latest"
+	geosReleaseBaseURL       = "https://github.com/bluewaysw/pcgeos/releases/download"
+	baseboxReleaseBaseURL    = "https://github.com/bluewaysw/pcgeos-basebox/releases/download"
+	geosArchiveName          = "pcgeos-ensemble_nc.zip"
+	baseboxArchiveName       = "pcgeos-basebox.zip"
+	geosArchiveRoot          = "ensemble"
 )
 
 func main() {
-	installRoot, force := parseInstallRootAndFlags()
+	installRoot, force, geosTag, baseboxTag, err := parseInstallRootAndFlags()
+	if err != nil {
+		fatal(err)
+	}
 
 	baseboxDir := filepath.Join(installRoot, "basebox")
 	drivecDir := filepath.Join(installRoot, "drivec")
@@ -44,12 +51,12 @@ func main() {
 	baseboxZip := filepath.Join(tempDir, "pcgeos-basebox.zip")
 
 	logger.Println("Downloading PC/GEOS Ensemble build")
-	if err := downloadFile(geosReleaseURL, geosZip); err != nil {
+	if err := downloadFile(buildGeosReleaseURL(geosTag), geosZip); err != nil {
 		fatal(fmt.Errorf("download geos: %w", err))
 	}
 
 	logger.Println("Downloading Basebox DOSBox-Staging fork")
-	if err := downloadFile(baseboxReleaseURL, baseboxZip); err != nil {
+	if err := downloadFile(buildBaseboxReleaseURL(baseboxTag), baseboxZip); err != nil {
 		fatal(fmt.Errorf("download basebox: %w", err))
 	}
 
@@ -103,14 +110,20 @@ func main() {
 	logger.Println("Deployment complete.")
 }
 
-func parseInstallRootAndFlags() (string, bool) {
+func parseInstallRootAndFlags() (string, bool, string, string, error) {
 	var force bool
 	var help bool
+	var geosIssue string
+	var baseboxIssue string
 
 	flag.BoolVar(&force, "force", false, "overwrite existing installation without prompt")
 	flag.BoolVar(&force, "f", false, "overwrite existing installation without prompt")
 	flag.BoolVar(&help, "help", false, "show this help message")
 	flag.BoolVar(&help, "h", false, "show this help message")
+	flag.StringVar(&geosIssue, "geos", "", "GEOS issue number (e.g., 829 or #829)")
+	flag.StringVar(&geosIssue, "g", "", "GEOS issue number (e.g., 829 or #829)")
+	flag.StringVar(&baseboxIssue, "basebox", "", "Basebox issue number (e.g., 13 or #13)")
+	flag.StringVar(&baseboxIssue, "b", "", "Basebox issue number (e.g., 13 or #13)")
 
 	flag.Usage = printUsage
 	flag.Parse()
@@ -120,32 +133,47 @@ func parseInstallRootAndFlags() (string, bool) {
 		os.Exit(0)
 	}
 
+	geosTag, err := resolveIssueTag(geosIssue, defaultGeosReleaseTag, "GEOS")
+	if err != nil {
+		return "", false, "", "", err
+	}
+
+	baseboxTag, err := resolveIssueTag(baseboxIssue, defaultBaseboxReleaseTag, "Basebox")
+	if err != nil {
+		return "", false, "", "", err
+	}
+
 	root := "geospc"
 	if arg := flag.Arg(0); arg != "" {
 		root = arg
 	}
 
 	if filepath.IsAbs(root) {
-		return filepath.Clean(root), force
+		return filepath.Clean(root), force, geosTag, baseboxTag, nil
 	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fatal(fmt.Errorf("resolve home directory: %w", err))
+		return "", false, "", "", fmt.Errorf("resolve home directory: %w", err)
 	}
 
-	return filepath.Join(homeDir, root), force
+	return filepath.Join(homeDir, root), force, geosTag, baseboxTag, nil
 }
 
 func printUsage() {
 	fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] [install_root]\n", filepath.Base(os.Args[0]))
 	fmt.Fprintln(flag.CommandLine.Output())
 	fmt.Fprintln(flag.CommandLine.Output(), "Options:")
-	fmt.Fprintln(flag.CommandLine.Output(), "  -f, --force   overwrite existing installation without prompt")
-	fmt.Fprintln(flag.CommandLine.Output(), "  -h, --help    show this help message")
+	fmt.Fprintln(flag.CommandLine.Output(), "  -f, --force            overwrite existing installation without prompt")
+	fmt.Fprintln(flag.CommandLine.Output(), "  -g, --geos <issue>     use CI-latest-issue-<issue> for GEOS downloads (accepts 829 or #829)")
+	fmt.Fprintln(flag.CommandLine.Output(), "  -b, --basebox <issue>  use CI-latest-issue-<issue> for Basebox downloads (accepts 13 or #13)")
+	fmt.Fprintln(flag.CommandLine.Output(), "  -h, --help             show this help message")
 	fmt.Fprintln(flag.CommandLine.Output())
 	fmt.Fprintln(flag.CommandLine.Output(), "Arguments:")
 	fmt.Fprintln(flag.CommandLine.Output(), "  install_root  optional install root; defaults to geospc (absolute roots cleaned, relative roots resolved under home)")
+	fmt.Fprintln(flag.CommandLine.Output())
+	fmt.Fprintln(flag.CommandLine.Output(), "Defaults:")
+	fmt.Fprintln(flag.CommandLine.Output(), "  If no issue flags are provided, the default tags are used (edit defaultGeosReleaseTag/defaultBaseboxReleaseTag to change).")
 }
 
 func prepareInstallRoot(installRoot string, force bool) error {
@@ -206,4 +234,39 @@ func confirmOverwrite() (bool, error) {
 func fatal(err error) {
 	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	os.Exit(1)
+}
+
+func buildGeosReleaseURL(tag string) string {
+	return fmt.Sprintf("%s/%s/%s", geosReleaseBaseURL, tag, geosArchiveName)
+}
+
+func buildBaseboxReleaseURL(tag string) string {
+	return fmt.Sprintf("%s/%s/%s", baseboxReleaseBaseURL, tag, baseboxArchiveName)
+}
+
+func resolveIssueTag(input, defaultTag, label string) (string, error) {
+	issue := strings.TrimSpace(input)
+	if issue == "" {
+		return defaultTag, nil
+	}
+
+	issue = strings.TrimPrefix(issue, "#")
+	if issue == "" {
+		return "", fmt.Errorf("%s issue number cannot be empty", label)
+	}
+
+	if !isNumeric(issue) {
+		return "", fmt.Errorf("%s issue number must be numeric: %q", label, input)
+	}
+
+	return fmt.Sprintf("CI-latest-issue-%s", issue), nil
+}
+
+func isNumeric(input string) bool {
+	for _, ch := range input {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return input != ""
 }

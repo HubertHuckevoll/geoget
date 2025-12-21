@@ -4,6 +4,7 @@ CAUTION: data you create with PC/GEOS Ensemble won't be preserved on an update, 
 
 ### How to use
 
+```
 The easiest way to use it is to just launch geoget, e.g. geoget-linux or geoget-win64.exe from Explorer. After doing so you will find a folder called "geospc" in your home folder. You can start the launcher "ensemble.cmd" in the newly created directory.
 
 If you want more, the advanced usage looks like this:
@@ -22,6 +23,7 @@ Arguments:
 
 Defaults:
   If no issue flags are provided, CI-latest is used.
+```
 
 =====================================================================
 
@@ -35,6 +37,7 @@ Der einfachste Weg ist, geoget einfach zu starten, z. B. geoget-linux oder geoge
 
 Wenn Sie mehr wollen, sieht die erweiterte Nutzung so aus:
 
+```
 geoget [Optionen] [install_root]
 
 Optionen:
@@ -49,3 +52,4 @@ Argumente:
 
 Standardverhalten:
   Wenn keine Issue-Optionen angegeben werden, wird CI-latest verwendet.
+```

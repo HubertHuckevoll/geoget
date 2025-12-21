@@ -27,7 +27,6 @@ var (
 		"nt64":  filepath.Join("binnt64", "basebox.exe"),
 		"rpi64": filepath.Join("binrpi64", "basebox"),
 	}
-	baseboxArchFallbackOrder = []string{"l64", "rpi64", "mac", "nt64", "nt"}
 )
 
 func createLaunchers(installRoot, arch string) error {
@@ -112,11 +111,7 @@ func writeBaseboxConfig(baseboxDir, drivecDir string) error {
 
 func ensureExecutables(baseboxDir string) error {
 	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
-		for _, arch := range baseboxArchFallbackOrder {
-			relPath, ok := baseboxBinaryPaths[arch]
-			if !ok {
-				continue
-			}
+		for _, relPath := range baseboxBinaryPaths {
 			exe := filepath.Join(baseboxDir, relPath)
 			if exists(exe) {
 				if err := os.Chmod(exe, 0o755); err != nil {
@@ -156,48 +151,28 @@ func detectBaseboxBinary(baseboxDir string) (baseboxBinary, error) {
 }
 
 func orderedBaseboxArchs() []string {
-	var preferred []string
+	var archs []string
 
 	switch runtime.GOOS {
 	case "linux":
-		if runtime.GOARCH == "arm64" {
-			preferred = append(preferred, "rpi64", "l64")
-		} else {
-			preferred = append(preferred, "l64", "rpi64")
+		switch runtime.GOARCH {
+		case "amd64":
+			archs = []string{"l64"}
+		case "arm64":
+			archs = []string{"rpi64"}
 		}
 	case "darwin":
-		preferred = append(preferred, "mac", "l64")
+		if runtime.GOARCH == "amd64" {
+			archs = []string{"mac"}
+		}
 	case "windows":
 		if runtime.GOARCH == "amd64" {
-			preferred = append(preferred, "nt64")
+			archs = []string{"nt64", "nt"}
+		} else {
+			archs = []string{"nt"}
 		}
-		preferred = append(preferred, "nt")
 	}
-
-	return appendMissingArch(preferred, baseboxArchFallbackOrder)
-}
-
-func appendMissingArch(prefix, suffix []string) []string {
-	seen := make(map[string]struct{}, len(prefix)+len(suffix))
-	result := make([]string, 0, len(prefix)+len(suffix))
-
-	for _, arch := range prefix {
-		if _, ok := seen[arch]; ok {
-			continue
-		}
-		seen[arch] = struct{}{}
-		result = append(result, arch)
-	}
-
-	for _, arch := range suffix {
-		if _, ok := seen[arch]; ok {
-			continue
-		}
-		seen[arch] = struct{}{}
-		result = append(result, arch)
-	}
-
-	return result
+	return archs
 }
 
 func binaryPathForArch(baseboxDir, arch string) (string, bool) {

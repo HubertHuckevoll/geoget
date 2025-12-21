@@ -16,13 +16,13 @@ const (
 	defaultBaseboxReleaseTag = "CI-latest"
 	geosReleaseBaseURL       = "https://github.com/bluewaysw/pcgeos/releases/download"
 	baseboxReleaseBaseURL    = "https://github.com/bluewaysw/pcgeos-basebox/releases/download"
-	geosArchiveName          = "pcgeos-ensemble_nc.zip"
+	geosArchiveName          = "pcgeos-ensemble_"
 	baseboxArchiveName       = "pcgeos-basebox.zip"
 	geosArchiveRoot          = "ensemble"
 )
 
 func main() {
-	installRoot, force, geosTag, baseboxTag, err := parseInstallRootAndFlags()
+	installRoot, force, geosTag, baseboxTag, geosLang, err := parseInstallRootAndFlags()
 	if err != nil {
 		fatal(err)
 	}
@@ -51,7 +51,7 @@ func main() {
 	baseboxZip := filepath.Join(tempDir, "pcgeos-basebox.zip")
 
 	logger.Println("Downloading PC/GEOS Ensemble build")
-	if err := downloadFile(buildGeosReleaseURL(geosTag), geosZip); err != nil {
+	if err := downloadFile(buildGeosReleaseURL(geosTag, geosLang), geosZip); err != nil {
 		fatal(fmt.Errorf("download geos: %w", err))
 	}
 
@@ -110,11 +110,12 @@ func main() {
 	logger.Println("Deployment complete.")
 }
 
-func parseInstallRootAndFlags() (string, bool, string, string, error) {
+func parseInstallRootAndFlags() (string, bool, string, string, string, error) {
 	var force bool
 	var help bool
 	var geosIssue string
 	var baseboxIssue string
+	var lang string
 
 	flag.BoolVar(&force, "force", false, "overwrite existing installation without prompt")
 	flag.BoolVar(&force, "f", false, "overwrite existing installation without prompt")
@@ -124,6 +125,8 @@ func parseInstallRootAndFlags() (string, bool, string, string, error) {
 	flag.StringVar(&geosIssue, "g", "", "GEOS issue number (e.g., 829 or #829)")
 	flag.StringVar(&baseboxIssue, "basebox", "", "Basebox issue number (e.g., 13 or #13)")
 	flag.StringVar(&baseboxIssue, "b", "", "Basebox issue number (e.g., 13 or #13)")
+	flag.StringVar(&lang, "lang", "", "non-english GEOS language to install (\"gr\")")
+	flag.StringVar(&lang, "l", "", "non-english GEOS language to install (\"gr\")")
 
 	flag.Usage = printUsage
 	flag.Parse()
@@ -135,12 +138,18 @@ func parseInstallRootAndFlags() (string, bool, string, string, error) {
 
 	geosTag, err := resolveIssueTag(geosIssue, defaultGeosReleaseTag, "GEOS")
 	if err != nil {
-		return "", false, "", "", err
+		return "", false, "", "", "", err
 	}
 
 	baseboxTag, err := resolveIssueTag(baseboxIssue, defaultBaseboxReleaseTag, "Basebox")
 	if err != nil {
-		return "", false, "", "", err
+		return "", false, "", "", "", err
+	}
+
+	if lang != "gr" {
+		lang = "nc"
+	} else {
+		lang = "german"
 	}
 
 	root := "geospc"
@@ -149,15 +158,15 @@ func parseInstallRootAndFlags() (string, bool, string, string, error) {
 	}
 
 	if filepath.IsAbs(root) {
-		return filepath.Clean(root), force, geosTag, baseboxTag, nil
+		return filepath.Clean(root), force, geosTag, baseboxTag, lang, nil
 	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", false, "", "", fmt.Errorf("resolve home directory: %w", err)
+		return "", false, "", "", "", fmt.Errorf("resolve home directory: %w", err)
 	}
 
-	return filepath.Join(homeDir, root), force, geosTag, baseboxTag, nil
+	return filepath.Join(homeDir, root), force, geosTag, baseboxTag, lang, nil
 }
 
 func printUsage() {
@@ -168,6 +177,7 @@ func printUsage() {
 	fmt.Fprintln(flag.CommandLine.Output(), "  -g, --geos <issue>     use CI-latest-<issue> for GEOS downloads (accepts 829 or #829)")
 	fmt.Fprintln(flag.CommandLine.Output(), "  -b, --basebox <issue>  use CI-latest-<issue> for Basebox downloads (accepts 13 or #13)")
 	fmt.Fprintln(flag.CommandLine.Output(), "  -h, --help             show this help message")
+	fmt.Fprintln(flag.CommandLine.Output(), "  -l, --lang <lang>      non-english GEOS language to install (only \"gr\" supported for now)")
 	fmt.Fprintln(flag.CommandLine.Output())
 	fmt.Fprintln(flag.CommandLine.Output(), "Arguments:")
 	fmt.Fprintln(flag.CommandLine.Output(), "  install_root           optional install root; defaults to \"geospc\" under home")
@@ -236,8 +246,8 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func buildGeosReleaseURL(tag string) string {
-	return fmt.Sprintf("%s/%s/%s", geosReleaseBaseURL, tag, geosArchiveName)
+func buildGeosReleaseURL(tag string, geosLang string) string {
+	return fmt.Sprintf("%s/%s/%s%s.zip", geosReleaseBaseURL, tag, geosArchiveName, geosLang)
 }
 
 func buildBaseboxReleaseURL(tag string) string {

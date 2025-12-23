@@ -52,15 +52,17 @@ func main() {
 		Download
 	*/
 
+	logger.Println("Installing in", installRoot)
+
 	geosZip := filepath.Join(tempDir, "pcgeos-ensemble.zip")
 	baseboxZip := filepath.Join(tempDir, "pcgeos-basebox.zip")
 
-	logger.Println("Downloading PC/GEOS Ensemble build")
+	logger.Println("Downloading PC/GEOS Ensemble build:", geosTag, geosLang)
 	if err := downloadFile(buildGeosReleaseURL(geosTag, geosLang), geosZip); err != nil {
 		fatal(fmt.Errorf("download geos: %w", err))
 	}
 
-	logger.Println("Downloading Basebox")
+	logger.Println("Downloading Basebox:", baseboxTag)
 	if err := downloadFile(buildBaseboxReleaseURL(baseboxTag), baseboxZip); err != nil {
 		fatal(fmt.Errorf("download basebox: %w", err))
 	}

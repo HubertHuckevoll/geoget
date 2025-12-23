@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 const (
@@ -19,6 +20,10 @@ const (
 )
 
 func main() {
+
+	var wg sync.WaitGroup
+	var err1 error
+	var err2 error
 
 	/*
 		Prepare
@@ -57,13 +62,27 @@ func main() {
 	geosZip := filepath.Join(tempDir, "pcgeos-ensemble.zip")
 	baseboxZip := filepath.Join(tempDir, "pcgeos-basebox.zip")
 
-	logger.Println("Downloading PC/GEOS Ensemble build:", geosTag, geosLang)
-	if err := downloadFile(buildGeosReleaseURL(geosTag, geosLang), geosZip); err != nil {
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		logger.Println("Downloading PC/GEOS Ensemble build:", geosTag, geosLang)
+		err1 = downloadFile(buildGeosReleaseURL(geosTag, geosLang), geosZip)
+	}()
+
+	go func() {
+		defer wg.Done()
+		logger.Println("Downloading Basebox:", baseboxTag)
+		err2 = downloadFile(buildBaseboxReleaseURL(baseboxTag), baseboxZip)
+	}()
+
+	wg.Wait()
+
+	if err1 != nil {
 		fatal(fmt.Errorf("download geos: %w", err))
 	}
 
-	logger.Println("Downloading Basebox:", baseboxTag)
-	if err := downloadFile(buildBaseboxReleaseURL(baseboxTag), baseboxZip); err != nil {
+	if err2 != nil {
 		fatal(fmt.Errorf("download basebox: %w", err))
 	}
 

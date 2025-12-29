@@ -32,7 +32,7 @@ If you want more, advanced usage looks like this:
 #### Defaults:
 
   If no flags or arguments are provided, the english CI-latest version of GEOS
-  is downloadedinto "geospc", along with the regular Basebox (that does not provide host
+  is downloaded into "geospc", along with the regular Basebox (that does not provide host
   internet access yet).
 
 ### Usage Samples

@@ -22,7 +22,11 @@ Arguments:
   install_root           optional install root; defaults to "geospc" under home
 
 Defaults:
-  If no issue flags are provided, CI-latest is used.
+  If no issue flags are provided, CI-latest is used for Basebox and the geos-release. 
+Note:
+Some geos-release needs a matching basebox-release to work properly. e.g. Geos-Issue 829 (Release with the DPI-       Video-Driver) needs the basebox-Issue 13-Release. Please use option -b 13 to choose.
+The german-geos-release is a CI-Latest-Release (no DPI-Video-Driver) and works in both basebox-releases.
+
 ```
 
 ### Samples
@@ -57,4 +61,8 @@ Argumente:
 
 Standardverhalten:
   Wenn keine Issue-Optionen angegeben werden, wird CI-latest verwendet.
+Hinweis:
+Manche Geos-Versionen benötigen eine bestimmte Basebox-Version um korrekt zu arbeiten. Geos-Release Issue 829 (Version mit den DPI-Video-Treibern) benötigt die Basebox Issue 13 Version. Bitte nutzen -sie die Option -b 13 zum auswählen.
+Die deutsche Geos-Version ist ein CI-Latest-Release (keine DPI-Video-Treiber) und funktioniert in beiden Basebox-Versionen. 
+
 ```

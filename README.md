@@ -64,29 +64,57 @@ Deutsche Version
 
 ===================================================================
 
-Geoget ist ein Werkzeug, das eine einfache Möglichkeit bietet, die aktuelle Vorabversion von PC/GEOS (https://github.com/bluewaysw/pcgeos) in Kombination mit der Basebox-Version (https://github.com/bluewaysw/pcgeos-basebox) zu testen.
+**Geoget** ist ein Werkzeug, das Ihnen eine einfache Möglichkeit gibt, Vorabversionen von PC/GEOS (https://github.com/bluewaysw/pcgeos) in Kombination mit unserem spezialisierten DosBox-Staging-Fork namens "Basebox" zu testen, die für die Verwendung mit PC/GEOS optimiert ist (https://github.com/bluewaysw/pcgeos-basebox). Es gibt Versionen von **geoget** für Win 64, Win 32, Linux, Mac und RPi.
 
-ACHTUNG: Daten, die Sie mit PC/GEOS Ensemble erstellen, bleiben bei einem Update nicht erhalten. Dies ist ausschließlich für Test- und Debugging-Zwecke gedacht.
+VORSICHT: Daten, die Sie mit diesen heruntergeladenen PC/GEOS Ensemble-Builds erstellen, bleiben bei Updates nicht erhalten. Dieses Tool ist hauptsächlich zum Testen / Debuggen gedacht.
 
-### Nutzung
-
-Der einfachste Weg ist, geoget einfach zu starten, z. B. geoget-linux oder geoget-win64.exe aus dem Explorer. Danach finden Sie in Ihrem Home-Verzeichnis einen Ordner namens "geospc". In dem neu angelegten Verzeichnis können Sie den Launcher "ensemble.cmd" starten.
+Der einfachste Weg, **Geoget** zu verwenden, besteht darin, es einfach zu starten, z. B. ```geoget-linux``` oder ```geoget-win64.exe``` aus dem Dateimanager Ihrer Wahl. Danach finden Sie einen Ordner namens ```geospc``` in Ihrem Home-Ordner. Sie können den Launcher ```ensemble.cmd``` oder ```ensemble.sh``` in diesem Verzeichnis starten.
 
 Wenn Sie mehr wollen, sieht die erweiterte Nutzung so aus:
 
+### Wie man es benutzt
+
+``` geoget [Optionen] [install_root] ```
+
+#### Optionen:
+
+  ``` -f, --force ```: Bestehende Installation ohne Aufforderung überschreiben
+
+  ``` -g, --geos <issue> ```: Verwenden Sie ```CI-latest-<issue>``` für GEOS-Downloads (akzeptiert Problemnummern mit oder ohne "#")
+
+  ```-b, --basebox <issue>```: Verwenden Sie ```CI-latest-<issue>``` für Basebox-Downloads
+
+  ```-h, --help```: Diese Hilfemeldung anzeigen.
+
+  ```-l, --lang <lang>```: Nicht-englische GEOS-Sprache zum Installieren. (Derzeit wird nur "gr" unterstützt und nur mit CI-latest.)
+
+#### Argumente:
+
+  ```install_root ```: Optionales Installationsverzeichnis; Standard ist "geospc" unter home
+
+#### Standardeinstellungen:
+
+  Wenn keine Flags oder Argumente angegeben werden, wird die englische CI-latest-Version von GEOS zusammen mit der regulären Basebox (die noch keinen Host-Internetzugang bietet) in "geospc" heruntergeladen.
+
+### Anwendungsbeispiele
+
 ```
-geoget [Optionen] [install_root]
+# Lade den Geos-Build für "Issue #829" und den Basebox-Build für "Issue #13"
+# in den Ordner "geos-hostapi-2" herunter.
+# Dies gibt Ihnen die Testversion für die neuen Freeform-DPI-Treiber und
+# verbesserten Host-Internetzugang, insbesondere unter Linux.
 
-Optionen:
-  -f, --force            vorhandene Installation ohne Rückfrage überschreiben
-  -g, --geos <issue>     CI-latest-<issue> für GEOS-Downloads verwenden (akzeptiert 829 oder #829)
-  -b, --basebox <issue>  CI-latest-<issue> für Basebox-Downloads verwenden (akzeptiert 13 oder #13)
-  -h, --help             diese Hilfe anzeigen
-  -l, --lang <lang>      nicht-englische GEOS-Sprache installieren (derzeit nur "gr" unterstützt)
+geoget-win64 -g 829 -b 13 geos-hostapi-2
 
-Argumente:
-  install_root           optionales Installationsverzeichnis; Standard ist "geospc" im Home-Verzeichnis
+# Lade die "geteilte Version" herunter, in der wir Optionen für eine update-sichere
+# Verteilung von PC/GEOS mit dem "Issue 2"-Build von Basebox testen, der
+# die ursprüngliche Host-API-Schnittstelle bietet und Host-Internetzugang ermöglicht.
 
-Standardverhalten:
-  Wenn keine Issue-Optionen angegeben werden, wird CI-latest verwendet.
+geoget-linux -g 973 -b 2 geos-split-install
+
+# Lade die reguläre CI-latest-Version von GEOS zusammen mit der Basebox-Version herunter,
+# die Ihnen Host-Internetzugang ermöglicht, und überschreibe eine ältere Version in "geospc".
+
+geoget-win32 -b 2 -f
+
 ```

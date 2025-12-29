@@ -25,6 +25,11 @@ Defaults:
   If no issue flags are provided, CI-latest is used.
 ```
 
+### Samples
+
+` // download geos build for "issue #829" and basebox build for "issue #13"
+geoget-win64 -g 829 -b 13 geos-hostapi-2
+
 =====================================================================
 
 Geoget ist ein Werkzeug, das eine einfache Möglichkeit bietet, die aktuelle Vorabversion von PC/GEOS (https://github.com/bluewaysw/pcgeos) in Kombination mit der Basebox-Version (https://github.com/bluewaysw/pcgeos-basebox) zu testen.
